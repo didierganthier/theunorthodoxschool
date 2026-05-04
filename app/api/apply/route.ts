@@ -5,6 +5,8 @@ import path from "path";
 const DATA_DIR = path.join(process.cwd(), "data");
 const FILE_PATH = path.join(DATA_DIR, "applications.json");
 
+const IS_SERVERLESS = process.env.VERCEL === "1";
+
 const REQUIRED_FIELDS = [
   "fullName",
   "age",
@@ -63,19 +65,35 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    await mkdir(DATA_DIR, { recursive: true });
-
-    let applications: unknown[] = [];
-    try {
-      const raw = await readFile(FILE_PATH, "utf-8");
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) applications = parsed;
-    } catch {
-      // File doesn't exist yet — start fresh
+    // ── Strategy 1: Webhook (Zapier / Make / n8n) ─────────────────────────
+    // Set WEBHOOK_URL in Vercel environment variables to receive every
+    // application as a POST payload in any automation tool.
+    const webhookUrl = process.env.WEBHOOK_URL;
+    if (webhookUrl) {
+      await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(application),
+      });
     }
 
-    applications.push(application);
-    await writeFile(FILE_PATH, JSON.stringify(applications, null, 2), "utf-8");
+    // ── Strategy 2: Local file (development only) ────────────────────────
+    if (!IS_SERVERLESS) {
+      await mkdir(DATA_DIR, { recursive: true });
+      let applications: unknown[] = [];
+      try {
+        const raw = await readFile(FILE_PATH, "utf-8");
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) applications = parsed;
+      } catch {
+        // File doesn't exist yet — start fresh
+      }
+      applications.push(application);
+      await writeFile(FILE_PATH, JSON.stringify(applications, null, 2), "utf-8");
+    }
+
+    // ── Always: log to console (visible in Vercel Functions logs) ────────
+    console.log("NEW_APPLICATION", JSON.stringify(application));
 
     return NextResponse.json({ message: "Application received." }, { status: 201 });
   } catch (err) {
