@@ -74,9 +74,9 @@ export default function ApplyForm() {
             Application received.
           </h1>
           <p className="text-gray-400 leading-relaxed mb-8">
-            Thank you for applying to Cohort 1 of The Unorthodox School.
-            We review applications manually and will reach out via WhatsApp or
-            email within a few days.
+            Thank you for applying to The Unorthodox School. We review
+            applications manually and will reach out via WhatsApp or email
+            within a few days.
           </p>
           <Link
             href="/"
@@ -107,14 +107,14 @@ export default function ApplyForm() {
 
       <div className="max-w-xl mx-auto px-6 py-16">
         <p className="text-xs uppercase tracking-[0.3em] text-gray-500 mb-4">
-          Cohort 1 — June 27, 2027
+          Self-paced · Start when you&apos;re ready
         </p>
         <h1 className="text-3xl sm:text-4xl font-bold text-white mb-3">
           Apply to The Unorthodox School
         </h1>
         <p className="text-gray-500 text-sm mb-10 leading-relaxed">
-          This is a small cohort. We review every application personally.
-          Fill this out honestly — that&apos;s all we ask.
+          We review every application personally. Fill this out honestly —
+          that&apos;s all we ask.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -259,7 +259,7 @@ export default function ApplyForm() {
             </legend>
 
             <Field
-              label="Are you ready to commit 2–4 hours per week for 5 weeks?"
+              label="Can you commit a few focused hours each week to keep momentum?"
               required
             >
               <div className="flex gap-4">
