@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" fill="none" role="img" aria-label="The Unorthodox School">
+  <rect x="3" y="3" width="90" height="90" rx="22" fill="#0a0a0a" stroke="rgba(255,255,255,0.14)" stroke-width="2"/>
+  <path d="M28 52 L48 30 L68 52" fill="none" stroke="#ededed" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M31 66 H65" fill="none" stroke="#ededed" stroke-width="9" stroke-linecap="round"/>
+</svg>

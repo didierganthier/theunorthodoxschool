@@ -34,9 +34,41 @@ export default function SiteNav() {
       >
         <Link
           href="/"
-          className="text-sm font-semibold uppercase tracking-wider text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-sm"
+          className="flex items-center gap-2.5 rounded-sm text-sm font-semibold uppercase tracking-wider text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
         >
-          {siteConfig.name}
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 96 96"
+            fill="none"
+            aria-hidden="true"
+            className="shrink-0"
+          >
+            <rect
+              x="3"
+              y="3"
+              width="90"
+              height="90"
+              rx="22"
+              fill="#0a0a0a"
+              stroke="rgba(255,255,255,0.18)"
+              strokeWidth="3"
+            />
+            <path
+              d="M28 52 L48 30 L68 52"
+              stroke="#ededed"
+              strokeWidth="9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M31 66 H65"
+              stroke="#ededed"
+              strokeWidth="9"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span>{siteConfig.name}</span>
         </Link>
 
         <div className="flex items-center gap-1 sm:gap-2">
