@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { siteConfig } from "@/lib/site-config";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { getCurrentUser } from "@/lib/supabase/server";
 
 const links = [
   { href: "/", label: "Home" },
@@ -16,9 +18,13 @@ const enrollmentCta: Record<string, string> = {
 /**
  * Shared public site navigation. Preserves the original fixed, translucent,
  * dark styling. Includes a skip link and keyboard-accessible focus states.
+ * When a learner is signed in, the auth actions switch to Dashboard + Sign out.
  */
-export default function SiteNav() {
+export default async function SiteNav() {
   const cta = enrollmentCta[siteConfig.enrollmentStatus] ?? "Start Learning";
+  const authenticated = isSupabaseConfigured()
+    ? Boolean(await getCurrentUser())
+    : false;
 
   return (
     <header>
@@ -85,19 +91,41 @@ export default function SiteNav() {
             ))}
           </ul>
 
-          <Link
-            href="/login"
-            className="rounded-md px-3 py-2 text-sm text-gray-300 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-          >
-            Sign In
-          </Link>
+          {authenticated ? (
+            <>
+              <Link
+                href="/dashboard"
+                className="rounded-md px-3 py-2 text-sm text-gray-300 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              >
+                Dashboard
+              </Link>
 
-          <Link
-            href="/apply"
-            className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-          >
-            {cta}
-          </Link>
+              <form action="/auth/signout" method="post">
+                <button
+                  type="submit"
+                  className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                >
+                  Sign out
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="rounded-md px-3 py-2 text-sm text-gray-300 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              >
+                Sign In
+              </Link>
+
+              <Link
+                href="/apply"
+                className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+              >
+                {cta}
+              </Link>
+            </>
+          )}
         </div>
       </nav>
     </header>

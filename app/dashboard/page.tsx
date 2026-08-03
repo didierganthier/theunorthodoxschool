@@ -61,7 +61,9 @@ export default async function DashboardPage() {
               Dashboard
             </p>
             <h1 className="mt-3 text-4xl font-bold text-white">
-              Welcome back, {displayName}.
+              {progress.totalCompleted > 0
+                ? `Welcome back, ${displayName}.`
+                : `Welcome, ${displayName}.`}
             </h1>
             <p className="mt-3 text-gray-400">
               Self-paced. Your progress reflects what you have actually
