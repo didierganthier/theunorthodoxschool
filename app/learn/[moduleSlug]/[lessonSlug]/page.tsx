@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
 import CheckpointLearningGoal from "@/components/CheckpointLearningGoal";
+import ContinueReadingButton from "@/components/ContinueReadingButton";
 import { getLesson } from "@/lib/curriculum";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getCurrentUser, createClient } from "@/lib/supabase/server";
@@ -214,10 +215,19 @@ export default async function LessonPage({
           {!lesson.checkpoint && (
             <section className="mt-12 border-t border-white/10 pt-8">
               <p className="text-sm text-gray-500">
-                This lesson has no automated checkpoint. Read it, do the practice,
-                and continue when you are ready. There is no manual “mark
-                complete” — your progress is recorded through checkpoints.
+                This is a reading lesson. Read it, do the practice, then confirm
+                you have read it to unlock the next lesson.
               </p>
+              <ContinueReadingButton
+                moduleSlug={module.slug}
+                lessonSlug={lesson.slug}
+                nextHref={
+                  nextLesson
+                    ? `/learn/${module.slug}/${nextLesson.slug}`
+                    : "/dashboard"
+                }
+                alreadyCompleted={completed}
+              />
             </section>
           )}
 
