@@ -4,6 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { siteConfig } from "@/lib/site-config";
+import {
+  isValidEmail,
+  friendlyAuthError,
+  magicLinkRedirectUrl,
+} from "@/lib/auth-utils";
 
 type Status = "idle" | "loading" | "sent" | "error";
 
@@ -20,33 +25,41 @@ export default function LoginForm({ nextPath }: { nextPath: string }) {
     const supabase = createClient();
     if (!supabase) {
       setStatus("error");
-      setMessage("Authentication is not available yet. Please check back soon.");
+      setMessage("Sign-in is temporarily unavailable. Please try again shortly.");
       return;
     }
 
     const trimmed = email.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+    if (!isValidEmail(trimmed)) {
       setStatus("error");
       setMessage("Please enter a valid email address.");
       return;
     }
 
-    const redirectTo = `${siteConfig.url}/auth/callback?next=${encodeURIComponent(
-      nextPath,
-    )}`;
+    // Use the current origin so the magic link returns to the same environment
+    // (production domain in production, preview URL in preview, localhost in
+    // dev). Falls back to the configured site URL for safety.
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : siteConfig.url;
+    const redirectTo = magicLinkRedirectUrl(origin, nextPath);
 
     const { error } = await supabase.auth.signInWithOtp({
       email: trimmed,
-      options: { emailRedirectTo: redirectTo },
+      options: { emailRedirectTo: redirectTo, shouldCreateUser: true },
     });
 
     if (error) {
       setStatus("error");
-      setMessage(error.message);
+      setMessage(friendlyAuthError(error.message));
       return;
     }
 
     setStatus("sent");
+  }
+
+  function useDifferentEmail() {
+    setStatus("idle");
+    setMessage("");
   }
 
   if (status === "sent") {
@@ -60,6 +73,13 @@ export default function LoginForm({ nextPath }: { nextPath: string }) {
           We sent a secure sign-in link to <strong>{email}</strong>. Open it on
           this device to continue to your dashboard.
         </p>
+        <button
+          type="button"
+          onClick={useDifferentEmail}
+          className="mt-6 rounded-sm text-sm text-gray-400 underline underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+        >
+          Use a different email
+        </button>
       </div>
     );
   }
@@ -83,12 +103,13 @@ export default function LoginForm({ nextPath }: { nextPath: string }) {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
           aria-invalid={status === "error"}
+          aria-describedby={status === "error" ? "login-error" : undefined}
           className="w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-4 py-3 text-sm text-white placeholder-gray-600 transition-colors focus:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
         />
       </div>
 
       {status === "error" && (
-        <p role="alert" className="text-sm text-red-400">
+        <p id="login-error" role="alert" className="text-sm text-red-400">
           {message}
         </p>
       )}
@@ -98,7 +119,7 @@ export default function LoginForm({ nextPath }: { nextPath: string }) {
         disabled={status === "loading"}
         className="w-full rounded-md bg-white px-4 py-3 text-sm font-semibold text-black transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {status === "loading" ? "Sending link…" : "Email me a sign-in link"}
+        {status === "loading" ? "Sending link…" : "Send me a sign-in link"}
       </button>
 
       <p className="text-center text-xs text-gray-600">

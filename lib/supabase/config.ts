@@ -7,7 +7,16 @@
  */
 
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+
+/**
+ * Public client key. Supabase's newer "publishable" key (sb_publishable_…) is
+ * the drop-in replacement for the legacy anon key and is preferred; we fall
+ * back to the legacy anon key for compatibility.
+ */
+export const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  "";
 
 /** True only when both public Supabase values are present. */
 export function isSupabaseConfigured(): boolean {
