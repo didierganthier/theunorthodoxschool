@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { siteConfig } from "@/lib/site-config";
 
 type FormData = {
   fullName: string;
@@ -33,6 +34,7 @@ export default function ApplyForm() {
   const [form, setForm] = useState<FormData>(initial);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [confirmedEmail, setConfirmedEmail] = useState("");
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -52,11 +54,14 @@ export default function ApplyForm() {
         body: JSON.stringify(form),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.message || "Something went wrong.");
       }
 
+      setConfirmedEmail(
+        typeof data.email === "string" ? data.email : form.email,
+      );
       setStatus("success");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong.";
@@ -73,10 +78,27 @@ export default function ApplyForm() {
           <h1 className="text-3xl font-bold text-white mb-4">
             Application received.
           </h1>
-          <p className="text-gray-400 leading-relaxed mb-8">
-            Thank you for applying to The Unorthodox School. We review
-            applications manually and will reach out via WhatsApp or email
-            within a few days.
+          {confirmedEmail && (
+            <p className="text-gray-300 leading-relaxed mb-4">
+              We&apos;ve recorded your application for{" "}
+              <strong className="text-white">{confirmedEmail}</strong>.
+            </p>
+          )}
+          <p className="text-gray-400 leading-relaxed mb-4">
+            What happens next: our team reviews every application manually. This
+            is an application for a managed pilot or sponsored seat — submitting
+            it does not guarantee acceptance. If a seat is offered, we&apos;ll
+            reach out with the next step.
+          </p>
+          <p className="text-gray-500 text-sm leading-relaxed mb-8">
+            Questions? Contact{" "}
+            <a
+              href={`mailto:${siteConfig.supportEmail}`}
+              className="text-gray-300 underline underline-offset-4 hover:text-white"
+            >
+              {siteConfig.supportEmail}
+            </a>
+            .
           </p>
           <Link
             href="/"

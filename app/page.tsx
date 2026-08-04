@@ -68,24 +68,7 @@ const format = [
   },
 ];
 
-const enrollmentCta: Record<string, { label: string; note: string }> = {
-  open: {
-    label: "Start Learning",
-    note: "Begin at your own pace. No fixed start date.",
-  },
-  waitlist: {
-    label: "Join the Waitlist",
-    note: "We'll let you know the moment enrollment opens.",
-  },
-  closed: {
-    label: "Apply",
-    note: "Applications are reviewed on a rolling basis.",
-  },
-};
-
 export default function Home() {
-  const cta = enrollmentCta[siteConfig.enrollmentStatus] ?? enrollmentCta.open;
-
   return (
     <div className="bg-[#0a0a0a] font-sans text-[#ededed]">
       <SiteNav />
@@ -106,10 +89,10 @@ export default function Home() {
           </p>
           <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
             <Link
-              href="/apply"
+              href={siteConfig.enrollment.startLearning.href}
               className="rounded-md bg-white px-8 py-4 text-base font-semibold text-black transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
-              {cta.label}
+              {siteConfig.enrollment.startLearning.label}
             </Link>
             <Link
               href="/curriculum"
@@ -118,7 +101,17 @@ export default function Home() {
               Explore the curriculum
             </Link>
           </div>
-          <p className="mt-6 text-xs text-gray-600">{cta.note}</p>
+          <p className="mt-6 max-w-md text-xs leading-relaxed text-gray-600">
+            {siteConfig.enrollment.startLearning.description} Looking for a
+            sponsored seat?{" "}
+            <Link
+              href={siteConfig.enrollment.apply.href}
+              className="rounded-sm text-gray-400 underline underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              {siteConfig.enrollment.apply.label}
+            </Link>{" "}
+            — {siteConfig.enrollment.apply.disclaimer}
+          </p>
         </section>
 
         {/* 2. WHY THE SCHOOL EXISTS */}
@@ -310,12 +303,14 @@ export default function Home() {
               Price: {siteConfig.price.label}
             </p>
             <Link
-              href="/apply"
+              href={siteConfig.enrollment.apply.href}
               className="inline-block rounded-md bg-white px-10 py-5 text-lg font-semibold text-black transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             >
-              {cta.label}
+              {siteConfig.enrollment.apply.label}
             </Link>
-            <p className="mt-4 text-xs text-gray-600">{cta.note}</p>
+            <p className="mt-4 text-xs text-gray-600">
+              {siteConfig.enrollment.apply.disclaimer}
+            </p>
           </div>
         </section>
 

@@ -162,6 +162,13 @@ const level0: Module = {
         "If a quiz checkpoint says you missed a concept, you review that part and try again. Retrying is normal and expected.",
       practice:
         "Describe the learning loop in your own words in a single sentence.",
+      checkpoint: {
+        slug: "level-0-autonomous-learning",
+        title: "Checkpoint: How autonomous learning works",
+        description:
+          "Answer a few questions to confirm the core ideas are clear. You need 80% to pass and can retry as many times as you need.",
+        kind: "quiz",
+      },
     },
     {
       slug: "set-your-learning-goal",
