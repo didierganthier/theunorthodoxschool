@@ -5,7 +5,10 @@ import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
 import CheckpointLearningGoal from "@/components/CheckpointLearningGoal";
 import ContinueReadingButton from "@/components/ContinueReadingButton";
+import Quiz from "@/components/quiz/Quiz";
 import { getLesson } from "@/lib/curriculum";
+import { getQuizForLesson } from "@/lib/quiz/definitions";
+import { toPublicQuiz } from "@/lib/quiz/grade";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getCurrentUser, createClient } from "@/lib/supabase/server";
 import { getLearnerProgress } from "@/lib/progress";
@@ -85,6 +88,14 @@ export default async function LessonPage({
 
   const nextLesson =
     index < module.lessons.length - 1 ? module.lessons[index + 1] : null;
+
+  // Build the answer-free public quiz for quiz checkpoints. The answer key
+  // never leaves the server.
+  const quizDef =
+    lesson.checkpoint?.kind === "quiz"
+      ? getQuizForLesson(module.slug, lesson.slug)
+      : null;
+  const publicQuiz = quizDef ? toPublicQuiz(quizDef) : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0a0a0a] font-sans text-[#ededed]">
@@ -205,6 +216,23 @@ export default async function LessonPage({
                   checkpointSlug={lesson.checkpoint.slug}
                   fields={lesson.checkpoint.fields ?? []}
                   initialValues={savedAnswers}
+                  alreadyPassed={completed}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* Quiz checkpoint */}
+          {lesson.checkpoint?.kind === "quiz" && publicQuiz && (
+            <section className="mt-12 border-t border-white/10 pt-10">
+              <h2 className="text-xs uppercase tracking-[0.3em] text-gray-500">
+                Checkpoint
+              </h2>
+              <div className="mt-6">
+                <Quiz
+                  quiz={publicQuiz}
+                  moduleSlug={module.slug}
+                  lessonSlug={lesson.slug}
                   alreadyPassed={completed}
                 />
               </div>

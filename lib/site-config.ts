@@ -50,6 +50,30 @@ export const siteConfig = {
    */
   enrollmentStatus: env("NEXT_PUBLIC_ENROLLMENT_STATUS", "open") as EnrollmentStatus,
 
+  /**
+   * Enrollment-flow copy. Kept configurable because this model changes once
+   * payments are enabled. Today:
+   *   - "Start Learning" creates an account and opens the available learning
+   *     experience (Level 0). It does NOT require an application.
+   *   - "Apply" submits an application for the managed pilot or a sponsored
+   *     seat. Submitting an application does NOT automatically enroll anyone.
+   */
+  enrollment: {
+    startLearning: {
+      label: env("NEXT_PUBLIC_START_LEARNING_LABEL", "Start Learning"),
+      href: "/login",
+      description:
+        "Create an account and open the available learning experience.",
+    },
+    apply: {
+      label: env("NEXT_PUBLIC_APPLY_LABEL", "Apply for a seat"),
+      href: "/apply",
+      description:
+        "Submit an application for the managed pilot or a sponsored seat.",
+      disclaimer: "Applying does not guarantee a seat.",
+    },
+  },
+
   /** Recommended completion duration (self-paced guidance, not a deadline). */
   recommendedDuration: {
     levels: 5,

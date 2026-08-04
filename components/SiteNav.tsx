@@ -9,19 +9,12 @@ const links = [
   { href: "/how-it-works", label: "How It Works" },
 ];
 
-const enrollmentCta: Record<string, string> = {
-  open: "Start Learning",
-  waitlist: "Join Waitlist",
-  closed: "Apply",
-};
-
 /**
  * Shared public site navigation. Preserves the original fixed, translucent,
  * dark styling. Includes a skip link and keyboard-accessible focus states.
  * When a learner is signed in, the auth actions switch to Dashboard + Sign out.
  */
 export default async function SiteNav() {
-  const cta = enrollmentCta[siteConfig.enrollmentStatus] ?? "Start Learning";
   const authenticated = isSupabaseConfigured()
     ? Boolean(await getCurrentUser())
     : false;
@@ -119,10 +112,10 @@ export default async function SiteNav() {
               </Link>
 
               <Link
-                href="/apply"
+                href={siteConfig.enrollment.startLearning.href}
                 className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
               >
-                {cta}
+                {siteConfig.enrollment.startLearning.label}
               </Link>
             </>
           )}

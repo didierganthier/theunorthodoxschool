@@ -1,106 +1,131 @@
-import { NextRequest, NextResponse } from "next/server";
-import { writeFile, readFile, mkdir } from "fs/promises";
-import path from "path";
+import { NextResponse, type NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { validateApplication } from "@/lib/apply-validation";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const FILE_PATH = path.join(DATA_DIR, "applications.json");
-
-const IS_SERVERLESS = process.env.VERCEL === "1";
-
-const REQUIRED_FIELDS = [
-  "fullName",
-  "age",
-  "phone",
-  "email",
-  "situation",
-  "aiExperience",
-  "motivation",
-  "goal3months",
-  "commitHours",
-  "readyToAct",
-];
-
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-export async function POST(req: NextRequest) {
-  let body: Record<string, unknown>;
-
+/**
+ * Receives an /apply submission and persists it to Supabase.
+ *
+ * Supabase is the SINGLE SOURCE OF TRUTH. We never return success unless the
+ * database insert actually succeeded. Flow:
+ *
+ *   validate → insert via submit_application() → (optional) webhook → success
+ *
+ * A webhook failure never discards an already-stored application. Applicant
+ * free-text answers are never logged.
+ */
+export async function POST(request: NextRequest) {
+  let body: unknown;
   try {
-    body = await req.json();
+    body = await request.json();
   } catch {
-    return NextResponse.json({ message: "Invalid request body." }, { status: 400 });
+    return NextResponse.json({ message: "Invalid request." }, { status: 400 });
   }
 
-  // Validate required fields
-  for (const field of REQUIRED_FIELDS) {
-    if (!body[field] || String(body[field]).trim() === "") {
-      return NextResponse.json(
-        { message: `Missing required field: ${field}` },
-        { status: 400 }
-      );
-    }
+  const result = validateApplication(body);
+  if (!result.ok) {
+    return NextResponse.json(
+      { message: result.message, errors: result.errors },
+      { status: 400 },
+    );
   }
 
-  // Validate email
-  if (!isValidEmail(String(body.email))) {
-    return NextResponse.json({ message: "Invalid email address." }, { status: 400 });
+  // Persistence is required. If Supabase is not configured, do NOT pretend the
+  // application was received.
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json(
+      {
+        message:
+          "Applications are temporarily unavailable. Please try again shortly.",
+      },
+      { status: 503 },
+    );
   }
 
-  // Sanitize: only keep known fields as strings
-  const application = {
-    id: crypto.randomUUID(),
-    submittedAt: new Date().toISOString(),
-    fullName: String(body.fullName).trim().slice(0, 200),
-    age: String(body.age).trim().slice(0, 10),
-    phone: String(body.phone).trim().slice(0, 50),
-    email: String(body.email).trim().toLowerCase().slice(0, 200),
-    situation: String(body.situation).trim().slice(0, 100),
-    aiExperience: String(body.aiExperience).trim().slice(0, 100),
-    motivation: String(body.motivation).trim().slice(0, 2000),
-    goal3months: String(body.goal3months).trim().slice(0, 2000),
-    commitHours: String(body.commitHours).trim().slice(0, 10),
-    readyToAct: String(body.readyToAct).trim().slice(0, 10),
+  const supabase = await createClient();
+  if (!supabase) {
+    return NextResponse.json(
+      {
+        message:
+          "Applications are temporarily unavailable. Please try again shortly.",
+      },
+      { status: 503 },
+    );
+  }
+
+  // Attach the authenticated user id when present (applicants may be anon).
+  let userId: string | null = null;
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    userId = user?.id ?? null;
+  } catch {
+    userId = null;
+  }
+
+  const payload = { ...result.data, user_id: userId ?? "" };
+
+  const { data, error } = await supabase.rpc("submit_application", {
+    p: payload,
+  });
+
+  if (error) {
+    // Do not leak details or applicant answers.
+    console.error("Application persistence failed.");
+    return NextResponse.json(
+      { message: "We couldn't save your application. Please try again." },
+      { status: 500 },
+    );
+  }
+
+  const outcome = (data ?? {}) as {
+    duplicate?: boolean;
+    id?: string;
+    submitted_at?: string;
   };
 
-  try {
-    // ── Strategy 1: Webhook (Zapier / Make / n8n) ─────────────────────────
-    // Set WEBHOOK_URL in Vercel environment variables to receive every
-    // application as a POST payload in any automation tool.
-    const webhookUrl = process.env.WEBHOOK_URL;
-    if (webhookUrl) {
+  if (outcome.duplicate) {
+    return NextResponse.json(
+      {
+        message:
+          "We already have a recent application for this email. If this is a mistake, contact support and we'll help.",
+        duplicate: true,
+      },
+      { status: 409 },
+    );
+  }
+
+  if (!outcome.id) {
+    // Unexpected: no id means nothing was stored — never report success.
+    return NextResponse.json(
+      { message: "We couldn't save your application. Please try again." },
+      { status: 500 },
+    );
+  }
+
+  // Secondary, best-effort notification. A failure here must NOT fail the
+  // request — the application is already stored.
+  const webhookUrl = process.env.WEBHOOK_URL;
+  if (webhookUrl) {
+    try {
       await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(application),
+        body: JSON.stringify({
+          id: outcome.id,
+          full_name: result.data.full_name,
+          email: result.data.email,
+          submitted_at: outcome.submitted_at,
+        }),
       });
+    } catch {
+      // Swallow: notification is optional; the application is safely stored.
     }
-
-    // ── Strategy 2: Local file (development only) ────────────────────────
-    if (!IS_SERVERLESS) {
-      await mkdir(DATA_DIR, { recursive: true });
-      let applications: unknown[] = [];
-      try {
-        const raw = await readFile(FILE_PATH, "utf-8");
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) applications = parsed;
-      } catch {
-        // File doesn't exist yet — start fresh
-      }
-      applications.push(application);
-      await writeFile(FILE_PATH, JSON.stringify(applications, null, 2), "utf-8");
-    }
-
-    // ── Always: log to console (visible in Vercel Functions logs) ────────
-    console.log("NEW_APPLICATION", JSON.stringify(application));
-
-    return NextResponse.json({ message: "Application received." }, { status: 201 });
-  } catch (err) {
-    console.error("Failed to save application:", err);
-    return NextResponse.json(
-      { message: "Server error. Please try again." },
-      { status: 500 }
-    );
   }
+
+  return NextResponse.json(
+    { message: "Application received.", email: result.data.email },
+    { status: 201 },
+  );
 }
