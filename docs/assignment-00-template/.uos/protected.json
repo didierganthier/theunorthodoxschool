@@ -1,0 +1,7 @@
+{
+  "paths": [
+    ".github/workflows/grade.yml",
+    "scripts/grade.mjs",
+    ".uos/protected.json"
+  ]
+}

@@ -1,9 +1,10 @@
 # Operations Guide
 
-Operational notes for the two features shipped in this sprint:
+Operational notes for the features shipped in these sprints:
 
 1. Reliable application submissions (`/apply`).
 2. The reusable quiz checkpoint engine (Level 0).
+3. GitHub Assignment 00 (Level 0 onboarding) — section 5.
 
 ---
 
@@ -104,3 +105,106 @@ Grading is all-or-nothing per question; `passingScore` is a percentage.
 Pushing to `main` triggers the Vercel production deploy. Run the migrations
 (section 1) **before or immediately after** deploying so the new routes have the
 tables/functions they depend on.
+
+---
+
+## 5. GitHub Assignment 00 (Level 0)
+
+The final Level 0 lesson (`first-repository-exercise`) is a real GitHub
+assignment. The whole integration is **feature-flagged**: with
+`GITHUB_APP_ENABLED` unset/false (and/or the App env vars missing), the UI shows
+honest "not available yet" states and no repositories are ever created.
+
+**Do not enable in production until the flow has been verified in a preview
+deployment.**
+
+### 5.1 Apply the migration
+
+Run `supabase/migrations/0005_github_assignment_00.sql` (SQL Editor or
+`supabase db push`). It seeds the `assignment-00` definition, extends
+`github_submissions` with repository/invitation/grading columns (+ a unique
+index on `repository_full_name`), and adds `github_accounts.avatar_url`.
+
+### 5.2 The template repository
+
+Proposed template files live under `docs/assignment-00-template/` for review.
+Once approved, push them to `unorthodox-school/uos-assignment-00-template` and
+mark that repo as a **template repository** in its GitHub settings. Files:
+
+- `student/profile.json` — the only file learners edit (ships with placeholders).
+- `.github/workflows/grade.yml` — runs on push; gives fast learner feedback.
+- `scripts/grade.mjs` — pure-Node validator (no dependencies).
+- `.uos/protected.json` — manifest of protected paths.
+- `README.md` — learner instructions.
+
+The protected files are verified server-side by comparing git blob SHAs against
+the frozen template commit, so learners must not modify them.
+
+### 5.3 Create the GitHub App (org: `unorthodox-school`)
+
+**Repository permissions (least privilege):**
+
+| Permission     | Access       |
+| -------------- | ------------ |
+| Administration | Read & write |
+| Contents       | Read-only    |
+| Actions        | Read-only    |
+| Metadata       | Read-only    |
+
+Do **not** grant Contents write. Do **not** enable "Request user authorization
+(OAuth) during installation" — learner authorization is a separate flow.
+
+**Subscribe to events:** `workflow_run`, `installation`,
+`installation_repositories`.
+
+**Callback URL:** `https://<site>/api/github/callback`
+**Webhook URL:** `https://<site>/api/github/webhook` (set a webhook secret).
+
+### 5.4 Install the App — least privilege
+
+Install the App on the org with access to **only** the
+`uos-assignment-00-template` repository (NOT "All repositories"). The App
+automatically gains access to the private repos it creates from the template.
+
+After a learner starts the assignment, the server verifies via the GitHub API
+that the installation can access the newly created repo **before** continuing.
+If that verification fails, provisioning stops and the exact GitHub response is
+logged — do not broaden the installation scope without investigating.
+
+### 5.5 Environment variables (server scope — never `NEXT_PUBLIC`)
+
+```
+GITHUB_APP_ENABLED=true
+GITHUB_APP_ID=...
+GITHUB_APP_CLIENT_ID=...
+GITHUB_APP_CLIENT_SECRET=...
+GITHUB_APP_PRIVATE_KEY=...            # PEM (raw, escaped \n, or base64)
+GITHUB_APP_INSTALLATION_ID=...        # numeric
+GITHUB_WEBHOOK_SECRET=...
+GITHUB_ORG=unorthodox-school
+GITHUB_ASSIGNMENT00_TEMPLATE=unorthodox-school/uos-assignment-00-template
+NEXT_PUBLIC_SITE_URL=https://<site>
+SUPABASE_SERVICE_ROLE_KEY=...         # trusted webhook/grading writes only
+```
+
+The service-role key is used only by server-side trusted writes
+(`lib/supabase/admin.ts`) and the webhook grader; it is never exposed to the
+browser.
+
+### 5.6 The learner flow
+
+1. Learner clicks **Connect GitHub** → signed CSRF state → GitHub authorization
+   → `/api/github/callback` validates state, exchanges the code, stores the
+   numeric id/login/avatar, and discards the user token.
+2. Learner clicks **Start Assignment 00** → the server generates a private repo
+   from the template, verifies installation access, freezes the template commit,
+   and invites the learner as a collaborator (a `201` means the invitation is
+   pending acceptance; the repo is only marked "ready" once access is verified).
+3. Learner accepts the invitation and edits `student/profile.json`.
+4. GitHub Actions runs; on completion a `workflow_run` webhook is delivered.
+5. The webhook verifies the HMAC signature, re-checks the protected files at
+   `workflow_run.head_sha` against the frozen template, and validates the
+   profile server-side. A pass requires **workflow success AND intact protected
+   files AND a valid profile**.
+6. On pass, the service-role client completes the final Level 0 lesson.
+

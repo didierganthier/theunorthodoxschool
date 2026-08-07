@@ -4,14 +4,18 @@ import type { GithubConnectionStatus } from "@/lib/github/types";
 /**
  * Shows the learner's GitHub connection state.
  *
- * Sprint 1 default is `unavailable` — we never show a fake connected account.
+ * Default is `unavailable` — we never show a fake connected account. When the
+ * integration is live, `disconnected` shows a real Connect button that starts
+ * the GitHub App web authorization flow.
  */
 export default function GithubConnectionCard({
   status = "unavailable",
   username,
+  connectHref = "/api/github/connect?next=/settings",
 }: {
   status?: GithubConnectionStatus;
   username?: string;
+  connectHref?: string;
 }) {
   return (
     <div className="rounded-xl border border-white/10 bg-[#111111] p-6">
@@ -32,9 +36,19 @@ export default function GithubConnectionCard({
           Connected as <strong className="text-white">@{username}</strong>.
         </p>
       ) : status === "disconnected" ? (
-        <p className="mt-4 text-sm leading-relaxed text-gray-400">
-          Connect your GitHub account to start technical assignments.
-        </p>
+        <>
+          <p className="mt-4 text-sm leading-relaxed text-gray-400">
+            Connect your GitHub account to start technical assignments.
+          </p>
+          <div className="mt-5">
+            <a
+              href={connectHref}
+              className="inline-flex items-center rounded-md bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              Connect GitHub
+            </a>
+          </div>
+        </>
       ) : (
         <p className="mt-4 text-sm leading-relaxed text-gray-400">
           GitHub connection will become available when technical assignments

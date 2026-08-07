@@ -32,9 +32,11 @@ export interface Checkpoint {
   slug: string;
   title: string;
   description: string;
-  /** Only "learning-goal" is fully implemented in Sprint 1. */
-  kind: "learning-goal" | "quiz" | "placeholder";
+  /** Implemented kinds: "learning-goal", "quiz", "github-assignment". */
+  kind: "learning-goal" | "quiz" | "placeholder" | "github-assignment";
   fields?: CheckpointField[];
+  /** For kind "github-assignment": the assignment slug this checkpoint maps to. */
+  assignmentSlug?: string;
 }
 
 export interface Lesson {
@@ -330,15 +332,15 @@ const level0: Module = {
     },
     {
       slug: "first-repository-exercise",
-      title: "Prepare for your first repository exercise",
+      title: "Complete Assignment 00 on GitHub",
       objective:
-        "Know exactly what to expect from your first GitHub-based exercise so you can start it with confidence.",
-      estimatedMinutes: 10,
-      lessonType: "reading",
+        "Connect GitHub, generate your private repository, edit one file, and let automated checks grade and complete your first assignment.",
+      estimatedMinutes: 20,
+      lessonType: "github-assignment",
       content: [
         {
           type: "paragraph",
-          text: "Your first repository exercise will come in Level 3, once you have the foundations. This lesson simply prepares you so nothing feels sudden.",
+          text: "This is your first real GitHub assignment. You will connect your GitHub account, the school will generate a private repository just for you, and you will make one small edit. Automated checks then grade your work and complete this lesson.",
         },
         {
           type: "heading",
@@ -347,27 +349,35 @@ const level0: Module = {
         {
           type: "list",
           items: [
-            "You will connect your GitHub account to your learner profile.",
-            "The school will create a starter repository for you.",
-            "You will make changes following the assignment instructions.",
-            "Automated checks will run and report your result.",
-            "When the checks pass, the next lesson unlocks.",
+            "You connect your GitHub account to your learner profile.",
+            "The school generates a private repository from the assignment template and invites you to it.",
+            "You accept the invitation, then edit student/profile.json with your details.",
+            "GitHub Actions runs automated checks on your change.",
+            "When the checks pass and the protected files are intact, this lesson completes automatically.",
           ],
         },
         {
           type: "paragraph",
-          text: "GitHub connection becomes available when technical assignments open. Until then, no repository is created and no connection is shown as active.",
+          text: "You only edit student/profile.json. The grading files are protected — changing them will cause the check to fail, so leave them as they are.",
         },
       ],
       keyIdeas: [
-        "Your first GitHub exercise arrives in Level 3.",
-        "Everything is guided step by step — nothing is assumed.",
-        "GitHub connection is honestly shown as unavailable until assignments open.",
+        "Your repository is private and created for you inside the school's GitHub organization.",
+        "You edit only student/profile.json; the automated checks do the rest.",
+        "The lesson completes when the assignment passes — no manual button.",
       ],
       example:
-        "You will not be dropped into a blank screen. Each repository exercise includes clear instructions and a checklist.",
+        "Open student/profile.json, fill in your name, GitHub username, favorite language, and why you joined, then commit. The checks run within a minute.",
       practice:
-        "Confirm you have completed your learning goal and created a GitHub account. That is all you need to move forward.",
+        "Connect GitHub below, start the assignment, accept the repository invitation, and submit your profile.",
+      checkpoint: {
+        slug: "assignment-00",
+        title: "Checkpoint: Complete Assignment 00",
+        description:
+          "Connect GitHub, generate your private repository, edit student/profile.json, and let the automated checks grade your work. This lesson completes when the assignment passes.",
+        kind: "github-assignment",
+        assignmentSlug: "assignment-00",
+      },
     },
   ],
 };

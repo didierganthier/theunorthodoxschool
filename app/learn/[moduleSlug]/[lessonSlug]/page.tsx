@@ -6,12 +6,20 @@ import SiteFooter from "@/components/SiteFooter";
 import CheckpointLearningGoal from "@/components/CheckpointLearningGoal";
 import ContinueReadingButton from "@/components/ContinueReadingButton";
 import Quiz from "@/components/quiz/Quiz";
+import AssignmentClient from "@/components/github/AssignmentClient";
 import { getLesson } from "@/lib/curriculum";
 import { getQuizForLesson } from "@/lib/quiz/definitions";
 import { toPublicQuiz } from "@/lib/quiz/grade";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getCurrentUser, createClient } from "@/lib/supabase/server";
 import { getLearnerProgress } from "@/lib/progress";
+import { getGithubConnection } from "@/lib/github/server/connection";
+import {
+  mapSubmissionRow,
+  SUBMISSION_COLUMNS,
+  type SubmissionRow,
+} from "@/lib/github/server/submissions";
+import type { GithubSubmission } from "@/lib/github/types";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +104,25 @@ export default async function LessonPage({
       ? getQuizForLesson(module.slug, lesson.slug)
       : null;
   const publicQuiz = quizDef ? toPublicQuiz(quizDef) : null;
+
+  // Load GitHub connection + existing submission for assignment checkpoints.
+  let githubConnection: Awaited<ReturnType<typeof getGithubConnection>> | null = null;
+  let githubSubmission: GithubSubmission | null = null;
+  if (lesson.checkpoint?.kind === "github-assignment") {
+    githubConnection = await getGithubConnection(userId);
+    if (configured && userId) {
+      const supabase = await createClient();
+      if (supabase) {
+        const { data } = await supabase
+          .from("github_submissions")
+          .select(SUBMISSION_COLUMNS)
+          .eq("user_id", userId)
+          .eq("assignment_slug", lesson.checkpoint.assignmentSlug ?? "assignment-00")
+          .maybeSingle();
+        if (data) githubSubmission = mapSubmissionRow(data as SubmissionRow);
+      }
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0a0a0a] font-sans text-[#ededed]">
@@ -233,6 +260,31 @@ export default async function LessonPage({
                   quiz={publicQuiz}
                   moduleSlug={module.slug}
                   lessonSlug={lesson.slug}
+                  alreadyPassed={completed}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* GitHub assignment checkpoint */}
+          {lesson.checkpoint?.kind === "github-assignment" && githubConnection && (
+            <section className="mt-12 border-t border-white/10 pt-10">
+              <h2 className="text-xs uppercase tracking-[0.3em] text-gray-500">
+                Checkpoint
+              </h2>
+              <h3 className="mt-3 text-2xl font-bold text-white">
+                {lesson.checkpoint.title}
+              </h3>
+              <p className="mt-3 leading-relaxed text-gray-400">
+                {lesson.checkpoint.description}
+              </p>
+              <div className="mt-8">
+                <AssignmentClient
+                  moduleSlug={module.slug}
+                  lessonSlug={lesson.slug}
+                  connectionStatus={githubConnection.status}
+                  connectHref={`/api/github/connect?next=/learn/${module.slug}/${lesson.slug}`}
+                  initialSubmission={githubSubmission}
                   alreadyPassed={completed}
                 />
               </div>

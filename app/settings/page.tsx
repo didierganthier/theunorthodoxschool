@@ -6,6 +6,7 @@ import GithubConnectionCard from "@/components/GithubConnectionCard";
 import { siteConfig } from "@/lib/site-config";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { getGithubConnection } from "@/lib/github/server/connection";
 
 export const metadata: Metadata = {
   title: "Settings",
@@ -19,11 +20,15 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   const configured = isSupabaseConfigured();
   let email = "";
+  let userId: string | null = null;
   if (configured) {
     const user = await getCurrentUser();
     if (!user) redirect("/login?next=/settings");
     email = user.email ?? "";
+    userId = user.id;
   }
+
+  const github = await getGithubConnection(userId);
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0a0a0a] font-sans text-[#ededed]">
@@ -55,7 +60,10 @@ export default async function SettingsPage() {
           </section>
 
           <div className="mt-6">
-            <GithubConnectionCard status="unavailable" />
+            <GithubConnectionCard
+              status={github.status}
+              username={github.username ?? undefined}
+            />
           </div>
 
           {configured && (

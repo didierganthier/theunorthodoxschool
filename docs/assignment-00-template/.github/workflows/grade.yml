@@ -1,0 +1,27 @@
+name: Grade Assignment 00
+
+# Runs on every push. When the run completes, GitHub notifies the school via a
+# workflow_run webhook, and the school performs the authoritative grade
+# (protected-file verification + profile validation) server-side.
+on:
+  push:
+  workflow_dispatch:
+
+# Least privilege: grading only needs to read the checked-out code.
+permissions:
+  contents: read
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out submission
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate student/profile.json
+        run: node scripts/grade.mjs

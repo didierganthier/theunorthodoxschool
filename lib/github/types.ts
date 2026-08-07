@@ -15,6 +15,7 @@ export type GithubConnectionStatus =
 export interface GithubAccount {
   githubUserId: string;
   githubUsername: string;
+  avatarUrl?: string | null;
   connectedAt: string;
 }
 
@@ -44,7 +45,11 @@ export interface AssignmentDefinition {
 export interface GithubSubmission {
   assignmentSlug: string;
   repositoryUrl: string | null;
+  repositoryFullName: string | null;
   repositoryStatus: RepositoryStatus;
+  /** Set while a collaborator invitation is pending acceptance. */
+  invitationUrl: string | null;
+  invitationAccepted: boolean;
   commitSha: string | null;
   workflowRunId: string | null;
   workflowStatus: AssignmentStatus;
