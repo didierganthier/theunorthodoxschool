@@ -102,6 +102,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Cannot grade submission." }, { status: 503 });
   }
 
+  // The connected GitHub login the profile must match (authoritative binding).
+  const { data: account } = await supabase
+    .from("github_accounts")
+    .select("github_username")
+    .eq("user_id", submission.user_id)
+    .maybeSingle();
+
   const grade = await gradeSubmission({
     octokit,
     owner,
@@ -110,6 +117,7 @@ export async function POST(request: NextRequest) {
     templateOwner: cfg.templateOwner,
     templateRepo: cfg.templateRepo,
     templateSha: submission.template_sha as string,
+    connectedUsername: (account?.github_username as string | undefined) ?? null,
   });
 
   const passed = conclusion === "success" && grade.protectedFilesValid && grade.profile.ok;

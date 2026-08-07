@@ -11,6 +11,18 @@ import {
 const PROTECTED_MANIFEST_PATH = ".uos/protected.json";
 const PROFILE_PATH = "student/profile.json";
 
+/**
+ * Paths that are ALWAYS protected regardless of the manifest contents. This
+ * guarantees a learner can never drop the grader, the workflow, or the manifest
+ * itself out of protection — even if the manifest is tampered with. The
+ * authoritative source is still the FROZEN template, not the learner repo.
+ */
+const MANDATORY_PROTECTED_PATHS: readonly string[] = [
+  ".github/workflows/grade.yml",
+  "scripts/grade.mjs",
+  ".uos/protected.json",
+];
+
 export interface GradeResult {
   protectedFilesValid: boolean;
   protected: ProtectedFileComparison;
@@ -80,24 +92,40 @@ export async function gradeSubmission(params: {
   templateOwner: string;
   templateRepo: string;
   templateSha: string;
+  /** Connected GitHub login the profile's github_username must match. */
+  connectedUsername?: string | null;
 }): Promise<GradeResult> {
-  const { octokit, owner, repo, headSha, templateOwner, templateRepo, templateSha } = params;
+  const {
+    octokit,
+    owner,
+    repo,
+    headSha,
+    templateOwner,
+    templateRepo,
+    templateSha,
+    connectedUsername,
+  } = params;
 
-  // Protected paths are defined by the frozen template manifest.
+  // Protected paths come from the FROZEN template manifest (read at the frozen
+  // templateSha) — never from the learner's copy. We additionally union in a
+  // mandatory baseline so protection can never be narrowed.
   const manifestRaw = await readFile(octokit, templateOwner, templateRepo, PROTECTED_MANIFEST_PATH, templateSha);
-  let protectedPaths: string[] = [];
+  const manifestPaths: string[] = [];
   if (manifestRaw) {
     try {
       const parsed = JSON.parse(manifestRaw);
       if (Array.isArray(parsed)) {
-        protectedPaths = parsed.filter((p): p is string => typeof p === "string");
+        manifestPaths.push(...parsed.filter((p): p is string => typeof p === "string"));
       } else if (parsed && Array.isArray(parsed.paths)) {
-        protectedPaths = parsed.paths.filter((p: unknown): p is string => typeof p === "string");
+        manifestPaths.push(
+          ...parsed.paths.filter((p: unknown): p is string => typeof p === "string"),
+        );
       }
     } catch {
-      protectedPaths = [];
+      // Ignore a malformed manifest — the mandatory baseline still applies.
     }
   }
+  const protectedPaths = Array.from(new Set([...MANDATORY_PROTECTED_PATHS, ...manifestPaths]));
 
   const [expected, actual] = await Promise.all([
     readTreeShas(octokit, templateOwner, templateRepo, templateSha),
@@ -107,7 +135,7 @@ export async function gradeSubmission(params: {
   const protectedComparison = compareProtectedFiles(protectedPaths, expected, actual);
 
   const profileRaw = await readFile(octokit, owner, repo, PROFILE_PATH, headSha);
-  const profile = validateProfileJson(profileRaw ?? "");
+  const profile = validateProfileJson(profileRaw ?? "", { expectedUsername: connectedUsername });
 
   const contentValid = protectedComparison.valid && profile.ok;
 

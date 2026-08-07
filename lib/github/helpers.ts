@@ -129,6 +129,16 @@ export interface ProfileValidation {
   errors: string[];
 }
 
+export interface ProfileValidationOptions {
+  /**
+   * The GitHub login of the connected learner account. When provided, the
+   * profile's `github_username` MUST match it (case-insensitive). This binds
+   * the submission to the authenticated identity so a learner cannot submit a
+   * profile claiming to be someone else.
+   */
+  expectedUsername?: string | null;
+}
+
 /** Required non-empty string fields in the learner's profile. */
 export const PROFILE_REQUIRED_FIELDS = [
   "name",
@@ -137,6 +147,9 @@ export const PROFILE_REQUIRED_FIELDS = [
   "why_join",
 ] as const;
 
+/** Only these keys are permitted — any others are rejected. */
+export const PROFILE_ALLOWED_FIELDS: readonly string[] = PROFILE_REQUIRED_FIELDS;
+
 const PROFILE_MAX_LENGTHS: Record<string, number> = {
   name: 120,
   github_username: 39,
@@ -144,13 +157,39 @@ const PROFILE_MAX_LENGTHS: Record<string, number> = {
   why_join: 1000,
 };
 
+const PROFILE_MIN_LENGTHS: Record<string, number> = {
+  name: 2,
+  why_join: 15,
+};
+
+/** Reject profile files that are unreasonably large (defense-in-depth). */
+export const PROFILE_MAX_RAW_BYTES = 4096;
+
 /**
- * Server-side validation of the learner's profile content. Accepts the RAW
- * file text so we can also reject invalid JSON. Never trusts the workflow's own
- * pass/fail — this is an independent check.
+ * GitHub username syntax: 1–39 chars, alphanumeric or single hyphens, cannot
+ * start or end with a hyphen and cannot contain consecutive hyphens.
  */
-export function validateProfileJson(raw: string): ProfileValidation {
+const GITHUB_USERNAME_RE = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
+
+const PLACEHOLDER_RE = /^(TODO|FIXME|your |replace )/i;
+
+/**
+ * Authoritative, server-side validation of the learner's profile content.
+ *
+ * This is a TRUSTED, independent implementation — it never calls or relies on
+ * the learner repository's `scripts/grade.mjs`. It accepts the RAW file text so
+ * it can also reject invalid or oversized JSON.
+ */
+export function validateProfileJson(
+  raw: string,
+  options: ProfileValidationOptions = {},
+): ProfileValidation {
   const errors: string[] = [];
+
+  // Reject oversized payloads before parsing.
+  if (Buffer.byteLength(raw, "utf8") > PROFILE_MAX_RAW_BYTES) {
+    return { ok: false, errors: ["profile.json is too large."] };
+  }
 
   let parsed: unknown;
   try {
@@ -165,19 +204,45 @@ export function validateProfileJson(raw: string): ProfileValidation {
 
   const obj = parsed as Record<string, unknown>;
 
+  // Reject any keys outside the explicitly permitted set.
+  for (const key of Object.keys(obj)) {
+    if (!PROFILE_ALLOWED_FIELDS.includes(key)) {
+      errors.push(`Unexpected field "${key}" is not allowed.`);
+    }
+  }
+
   for (const field of PROFILE_REQUIRED_FIELDS) {
     const value = obj[field];
     if (typeof value !== "string" || value.trim().length === 0) {
       errors.push(`Field "${field}" is required and must be a non-empty string.`);
       continue;
     }
+
+    const trimmed = value.trim();
     const max = PROFILE_MAX_LENGTHS[field];
     if (max && value.length > max) {
       errors.push(`Field "${field}" must be at most ${max} characters.`);
     }
+    const min = PROFILE_MIN_LENGTHS[field];
+    if (min && trimmed.length < min) {
+      errors.push(`Field "${field}" must be at least ${min} characters.`);
+    }
+
     // Reject the untouched starter placeholders so a learner must actually edit.
-    if (/^(TODO|FIXME|your |replace )/i.test(value.trim())) {
+    if (PLACEHOLDER_RE.test(trimmed)) {
       errors.push(`Field "${field}" still contains the starter placeholder.`);
+    }
+
+    if (field === "github_username" && !GITHUB_USERNAME_RE.test(trimmed)) {
+      errors.push('Field "github_username" is not a valid GitHub username.');
+    }
+  }
+
+  // Bind the profile to the authenticated GitHub identity (case-insensitive).
+  const claimed = obj["github_username"];
+  if (options.expectedUsername && typeof claimed === "string") {
+    if (claimed.trim().toLowerCase() !== options.expectedUsername.trim().toLowerCase()) {
+      errors.push('Field "github_username" must match your connected GitHub account.');
     }
   }
 

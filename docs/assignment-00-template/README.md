@@ -14,8 +14,9 @@ make a small change, commit it, and let automated checks verify your work.
    - `why_join` — a sentence about why you joined
 3. Commit and push your change.
 
-That's it. When you push, a GitHub Actions check runs automatically. When it
-passes, the school marks your Level 0 assignment complete.
+That's it. When you push, GitHub runs an automatic check. The Unorthodox School
+then independently verifies the same submission. When both checks pass, your
+Level 0 assignment is completed automatically.
 
 ## Important
 
@@ -24,7 +25,9 @@ passes, the school marks your Level 0 assignment complete.
   - `scripts/grade.mjs`
   - `.uos/protected.json`
   
-  If you change any of these, the check will fail. Leave them exactly as they are.
+  If you change any of these protected files, the school's verification will
+  reject the submission even if the visible GitHub Action succeeds. Leave them
+  exactly as they are.
 
 - Your repository is **private** and was created just for you.
 

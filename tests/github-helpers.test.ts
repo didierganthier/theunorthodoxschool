@@ -125,4 +125,69 @@ describe("validateProfileJson", () => {
     });
     expect(validateProfileJson(long).ok).toBe(false);
   });
+
+  it("rejects unexpected extra fields", () => {
+    const extra = JSON.stringify({
+      name: "Ada Lovelace",
+      github_username: "adalovelace",
+      favorite_language: "Python",
+      why_join: "To build unorthodox things.",
+      is_admin: true,
+    });
+    const result = validateProfileJson(extra);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes("is_admin"))).toBe(true);
+  });
+
+  it("rejects invalid github username syntax", () => {
+    for (const bad of ["-ada", "ada-", "a--b", "in valid", "with_underscore"]) {
+      const p = JSON.stringify({
+        name: "Ada Lovelace",
+        github_username: bad,
+        favorite_language: "Python",
+        why_join: "To build unorthodox things.",
+      });
+      expect(validateProfileJson(p).ok).toBe(false);
+    }
+  });
+
+  it("rejects a why_join that is too short", () => {
+    const short = JSON.stringify({
+      name: "Ada Lovelace",
+      github_username: "adalovelace",
+      favorite_language: "Python",
+      why_join: "Because.",
+    });
+    expect(validateProfileJson(short).ok).toBe(false);
+  });
+
+  it("rejects an oversized profile payload", () => {
+    const huge = JSON.stringify({
+      name: "Ada Lovelace",
+      github_username: "adalovelace",
+      favorite_language: "Python",
+      why_join: "x".repeat(5000),
+    });
+    expect(validateProfileJson(huge).ok).toBe(false);
+  });
+
+  it("requires github_username to match the connected account", () => {
+    const p = JSON.stringify({
+      name: "Ada Lovelace",
+      github_username: "someoneelse",
+      favorite_language: "Python",
+      why_join: "To build unorthodox things.",
+    });
+    expect(validateProfileJson(p, { expectedUsername: "adalovelace" }).ok).toBe(false);
+  });
+
+  it("matches the connected account case-insensitively", () => {
+    const p = JSON.stringify({
+      name: "Ada Lovelace",
+      github_username: "adalovelace",
+      favorite_language: "Python",
+      why_join: "To build unorthodox things.",
+    });
+    expect(validateProfileJson(p, { expectedUsername: "AdaLovelace" }).ok).toBe(true);
+  });
 });
